@@ -231,6 +231,7 @@ func handleNotFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Request) {
+	start_time := time.Now()
 	// Try to get username from the JWT.
 	username := ""
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
@@ -252,7 +253,14 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 
 	usernameProvided := username != ""
 	if usernameProvided {
+		auth_time := time.Since(start_time)
+		retrieval_time := time.Now()
 		mappings, errResponse := authMapping(server.db, username)
+		retrieval_time_end := time.Since(retrieval_time)
+		server.logger.Info("LUCAAAAAA auth time: %s", auth_time)
+		server.logger.Info("LUCAAAAAA retrieval time: %s", retrieval_time_end)
+
+
 		if errResponse != nil {
 			errResponse.log.write(server.logger)
 			_ = errResponse.write(w, r)
