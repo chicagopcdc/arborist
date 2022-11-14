@@ -695,6 +695,9 @@ func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
 		INNER JOIN permission ON permission.role_id = policy_role.role_id
 		INNER JOIN resource ON resource.path <@ roots.path
 	`
+
+	db_time := time.Now()
+		
 	err := db.Select(
 		&mappingQuery,
 		stmt,
@@ -702,6 +705,10 @@ func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
 		AnonymousGroup, // $2
 		LoggedInGroup,  // $3
 	)
+
+	db_time_end := time.Since(db_time)
+	server.logger.Info("LUCAAAAAA DB time: %s", db_time_end)
+
 	if err != nil {
 		errResponse := newErrorResponse("mapping query failed", 500, &err)
 		errResponse.log.Error(err.Error())
