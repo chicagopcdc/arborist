@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
@@ -708,7 +709,7 @@ func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
 	)
 
 	db_time_end := time.Since(db_time)
-	server.logger.Info("LUCAAAAAA DB time: %s", db_time_end)
+	fmt.Sprintf("LUCAAAAAA DB time: %s", db_time_end)
 
 	if err != nil {
 		errResponse := newErrorResponse("mapping query failed", 500, &err)
