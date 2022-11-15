@@ -255,7 +255,7 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 	if usernameProvided {
 		auth_time := time.Since(start_time)
 		retrieval_time := time.Now()
-		mappings, errResponse := authMapping(server.db, username)
+		mappings, errResponse := authMapping(server.db, username, server)
 		retrieval_time_end := time.Since(retrieval_time)
 		server.logger.Info("LUCAAAAAA auth time: %s", auth_time)
 		server.logger.Info("LUCAAAAAA retrieval time: %s", retrieval_time_end)
