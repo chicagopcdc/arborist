@@ -671,7 +671,7 @@ type AuthMapping map[string][]Action
 // If there is no user with this username in the db, this function will NOT
 // throw an error, but will return only the auth mapping of the `anonymous`
 // and `logged-in` groups.
-func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
+func authMapping(db *sqlx.DB, username string, server *Server) (AuthMapping, *ErrorResponse) {
 	mappingQuery := []AuthMappingQuery{}
 	stmt := `
 		SELECT DISTINCT resource.path, permission.service, permission.method
@@ -708,7 +708,7 @@ func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
 	)
 
 	db_time_end := time.Since(db_time)
-	fmt.Sprintf("LUCAAAAAA DB time: %s", db_time_end)
+	server.logger.Info("LUCAAAAAA DB time: %s", db_time_end)
 
 	if err != nil {
 		errResponse := newErrorResponse("mapping query failed", 500, &err)
