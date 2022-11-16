@@ -308,7 +308,7 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 	if requestBody.ClientID != "" {
 		mappings, errResponse = authMappingForClient(server.db, requestBody.ClientID)
 	} else {
-		mappings, errResponse = authMapping(server.db, requestBody.Username)
+		mappings, errResponse = authMapping(server.db, requestBody.Username, server)
 	}
 	if errResponse != nil {
 		errResponse.log.write(server.logger)
