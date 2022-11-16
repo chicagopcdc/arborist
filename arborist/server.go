@@ -259,7 +259,7 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 		retrieval_time_end := time.Since(retrieval_time)
 		server.logger.Info("LUCAAAAAA auth time: %s", auth_time)
 		server.logger.Info("LUCAAAAAA retrieval time: %s", retrieval_time_end)
-
+		json_time := time.Now()
 
 		if errResponse != nil {
 			errResponse.log.write(server.logger)
@@ -267,6 +267,8 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		_ = jsonResponseFrom(mappings, http.StatusOK).write(w, r)
+		json_time_end := time.Since(json_time)
+		server.logger.Info("LUCAAAAAA json time: %s", json_time_end)
 		return
 	} else {
 		// If no username provided in query string or JWT, return the
