@@ -695,8 +695,9 @@ func authMapping(db *sqlx.DB, username string, server *Server) (AuthMapping, *Er
 		INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
 		INNER JOIN permission ON permission.role_id = policy_role.role_id
 		INNER JOIN resource ON resource.path <@ roots.path
-		where ltree2text(resource.path) not like all (ARRAY['programs.pcdc.projects.20220201.%', 'programs.pcdc.projects.20220808.%', 'programs.pcdc.projects.20220110.%', 'programs.pcdc.projects.20220501_1.%']);
+		where ltree2text(resource.path) not like all (ARRAY['programs.pcdc.projects.20220201.%', 'programs.pcdc.projects.20220808.%', 'programs.pcdc.projects.20220110.%', 'programs.pcdc.projects.20220501_1.%', 'programs.pcdc.projects.20211006.%', 'programs.pcdc.projects.20210915.%', 'programs.pcdc.projects.20210212.%']);
 	`
+	
 	// where resource.path ~ (CAST('programs.pcdc.projects.20230228.*' AS lquery))
 	// where ltree2text(resource.path) not like 'programs.pcdc.projects.20220201.%' and ltree2text(resource.path) not like 'programs.pcdc.projects.20220808.%') as teat;
 
