@@ -699,29 +699,27 @@ func authMapping(db *sqlx.DB, username string, server *Server) (AuthMapping, *Er
 		    INNER JOIN policy_resource ON policy_resource.policy_id = policies.policy_id
 		    INNER JOIN resource AS roots ON roots.id = policy_resource.resource_id
 		)
-		SELECT count(*)
-		FROM (
-		    SELECT DISTINCT
-		        resource.path,
-		        permission.service,
-		        permission.method
-		    FROM policies
-		    INNER JOIN policy_resources ON policy_resources.policy_id = policies.policy_id
-		    INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
-		    INNER JOIN permission ON permission.role_id = policy_role.role_id
-		    INNER JOIN resource ON resource.path <@ policy_resources.path
-		    WHERE ltree2text(resource.path) NOT LIKE ALL (
-		        ARRAY[
-		            'programs.pcdc.projects.20220201.%',
-		            'programs.pcdc.projects.20220808.%',
-		            'programs.pcdc.projects.20220110.%',
-		            'programs.pcdc.projects.20220501_S01.%',
-		            'programs.pcdc.projects.20211006.%',
-		            'programs.pcdc.projects.20210915.%',
-		            'programs.pcdc.projects.20210212.%'
-		        ]
-		    )
-		) AS test
+	    SELECT DISTINCT
+	        resource.path,
+	        permission.service,
+	        permission.method
+	    FROM policies
+	    INNER JOIN policy_resources ON policy_resources.policy_id = policies.policy_id
+	    INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
+	    INNER JOIN permission ON permission.role_id = policy_role.role_id
+	    INNER JOIN resource ON resource.path <@ policy_resources.path
+	    WHERE ltree2text(resource.path) NOT LIKE ALL (
+	        ARRAY[
+	            'programs.pcdc.projects.20220201.%',
+	            'programs.pcdc.projects.20220808.%',
+	            'programs.pcdc.projects.20220110.%',
+	            'programs.pcdc.projects.20220501_S01.%',
+	            'programs.pcdc.projects.20211006.%',
+	            'programs.pcdc.projects.20210915.%',
+	            'programs.pcdc.projects.20210212.%'
+	        ]
+	    )
+		
 	`
 	
 	// where resource.path ~ (CAST('programs.pcdc.projects.20230228.*' AS lquery))
