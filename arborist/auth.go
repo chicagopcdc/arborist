@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
@@ -671,7 +670,7 @@ type AuthMapping map[string][]Action
 // If there is no user with this username in the db, this function will NOT
 // throw an error, but will return only the auth mapping of the `anonymous`
 // and `logged-in` groups.
-func authMapping(db *sqlx.DB, username string, server *Server) (AuthMapping, *ErrorResponse) {
+func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
 	mappingQuery := []AuthMappingQuery{}
 	stmt := `
 		WITH policies AS (
@@ -724,8 +723,6 @@ func authMapping(db *sqlx.DB, username string, server *Server) (AuthMapping, *Er
 	
 	// where resource.path ~ (CAST('programs.pcdc.projects.20230228.*' AS lquery))
 	// where ltree2text(resource.path) not like 'programs.pcdc.projects.20220201.%' and ltree2text(resource.path) not like 'programs.pcdc.projects.20220808.%') as teat;
-
-	db_time := time.Now()
 		
 	err := db.Select(
 		&mappingQuery,
@@ -734,9 +731,6 @@ func authMapping(db *sqlx.DB, username string, server *Server) (AuthMapping, *Er
 		AnonymousGroup, // $2
 		LoggedInGroup,  // $3
 	)
-
-	db_time_end := time.Since(db_time)
-	server.logger.Info("LUCAAAAAA DB time: %s", db_time_end)
 
 	if err != nil {
 		errResponse := newErrorResponse("mapping query failed", 500, &err)
