@@ -231,6 +231,7 @@ func handleNotFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Request) {
+	start_time := time.Now()
 	// Try to get username from the JWT.
 	username := ""
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
@@ -252,13 +253,22 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 
 	usernameProvided := username != ""
 	if usernameProvided {
-		mappings, errResponse := authMapping(server.db, username)
+		auth_time := time.Since(start_time)
+		retrieval_time := time.Now()
+		mappings, errResponse := authMapping(server.db, username, server)
+		retrieval_time_end := time.Since(retrieval_time)
+		server.logger.Info("LUCAAAAAA auth time: %s", auth_time)
+		server.logger.Info("LUCAAAAAA retrieval time: %s", retrieval_time_end)
+		json_time := time.Now()
+
 		if errResponse != nil {
 			errResponse.log.write(server.logger)
 			_ = errResponse.write(w, r)
 			return
 		}
 		_ = jsonResponseFrom(mappings, http.StatusOK).write(w, r)
+		json_time_end := time.Since(json_time)
+		server.logger.Info("LUCAAAAAA json time: %s", json_time_end)
 		return
 	} else {
 		// If no username provided in query string or JWT, return the
@@ -300,7 +310,7 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 	if requestBody.ClientID != "" {
 		mappings, errResponse = authMappingForClient(server.db, requestBody.ClientID)
 	} else {
-		mappings, errResponse = authMapping(server.db, requestBody.Username)
+		mappings, errResponse = authMapping(server.db, requestBody.Username, server)
 	}
 	if errResponse != nil {
 		errResponse.log.write(server.logger)
