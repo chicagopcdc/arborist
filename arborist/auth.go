@@ -709,6 +709,7 @@ func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
 	    INNER JOIN resource ON resource.path <@ policy_resources.path
 	    WHERE ltree2text(resource.path) NOT LIKE ALL (
 	        ARRAY[
+				'programs.pcdc.projects.20230912.%',
 				'programs.pcdc.projects.20230523.%',
 				'programs.pcdc.projects.20230228.%',
 	            'programs.pcdc.projects.20220808.%',
