@@ -319,11 +319,6 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 			server.logger.Info("tried to handle auth mapping request but input was invalid: %s", msg)
 			errResponse = newErrorResponse(msg, 400, nil)
 		} else {
-
-			// TODO remove
-			server.logger.Info("client in body: %s", requestBody.ClientID)
-			server.logger.Info("user in body: %s", requestBody.Username)
-
 			if (requestBody.Username == "") == (requestBody.ClientID == "") {
 				msg := "must specify exactly one of `username` or `clientID`"
 				server.logger.Info(msg)
