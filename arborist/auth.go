@@ -666,7 +666,7 @@ type AuthMapping map[string][]Action
 
 
 // TODO This is just a patch to filter out excessive resources. When transitioning to pelican import we should have a project_id = xyz parameter instead
-authMappingProjectExclusion := `
+var authMappingProjectExclusion = `
 ARRAY[
 				'programs.pcdc.projects.20230912.%',
 				'programs.pcdc.projects.20230523.%',
