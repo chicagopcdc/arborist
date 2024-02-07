@@ -730,8 +730,8 @@ func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
 	    )
 		
 	`
-	logger.error("LUCAAAAA")
-	logger.error(stmt)
+	fmt.Print("LUCAAAAA")
+	fmt.Print(stmt)
 	
 	// where resource.path ~ (CAST('programs.pcdc.projects.20230228.*' AS lquery))
 	// where ltree2text(resource.path) not like 'programs.pcdc.projects.20220201.%' and ltree2text(resource.path) not like 'programs.pcdc.projects.20220808.%') as teat;
