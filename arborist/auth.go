@@ -728,11 +728,7 @@ func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
    stmt += authMappingProjectExclusion
    stmt += `
 	    )
-		
 	`
-	fmt.Print("LUCAAAAA")
-	fmt.Print(stmt)
-	
 	// where resource.path ~ (CAST('programs.pcdc.projects.20230228.*' AS lquery))
 	// where ltree2text(resource.path) not like 'programs.pcdc.projects.20220201.%' and ltree2text(resource.path) not like 'programs.pcdc.projects.20220808.%') as teat;
 		
@@ -774,6 +770,12 @@ func authMappingForGroups(db *sqlx.DB, groups ...string) (AuthMapping, *ErrorRes
 		INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
 		INNER JOIN permission ON permission.role_id = policy_role.role_id
 		INNER JOIN resource ON resource.path <@ roots.path
+		WHERE ltree2text(resource.path) NOT LIKE ALL (`
+
+   	stmt += authMappingProjectExclusion
+   	stmt += `
+	    )
+		
 	`
 	// sqlx.In allows safely binding variable numbers of arguments as bindvars.
 	// See https://jmoiron.github.io/sqlx/#inQueries,
@@ -821,6 +823,11 @@ func authMappingForClient(db *sqlx.DB, clientID string) (AuthMapping, *ErrorResp
 		INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
 		INNER JOIN permission ON permission.role_id = policy_role.role_id
 		INNER JOIN resource ON resource.path <@ roots.path
+		WHERE ltree2text(resource.path) NOT LIKE ALL (`
+
+   	stmt += authMappingProjectExclusion
+   	stmt += `
+	    )
 	`
 	err := db.Select(
 		&mappingQuery,
