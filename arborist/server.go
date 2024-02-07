@@ -288,9 +288,6 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 		server.logger.Info("Attempting to get username or clientID from jwt...")
 
-		// TODO remove
-		server.logger.Info("header: %s", authHeader)
-
 		userJWT := strings.TrimPrefix(authHeader, "Bearer ")
 		userJWT = strings.TrimPrefix(userJWT, "bearer ")
 		scopes := []string{"openid"}
@@ -305,8 +302,15 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 			// TODO add logic in the print
 			username = info.username
 			clientID = info.clientID
-			server.logger.Info("found username in jwt: %s", username)
-			server.logger.Info("found clientID in jwt: %s", clientID)
+			server.logger.Info("%s", username)
+			server.logger.Info("%s", clientID)
+			if username != "" {
+				server.logger.Info("found username in jwt: %s", username)
+			}
+			if clientID != "" {
+				server.logger.Info("found clientID in jwt: %s", clientID)
+			}
+			
 		}
 	}
 
