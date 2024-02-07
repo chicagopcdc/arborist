@@ -299,11 +299,8 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 			errResponse = newErrorResponse(msg, 400, nil)
 		} else {
 
-			// TODO add logic in the print
 			username = info.username
 			clientID = info.clientID
-			server.logger.Info("%s", username)
-			server.logger.Info("%s", clientID)
 			if username != "" {
 				server.logger.Info("found username in jwt: %s", username)
 			}
