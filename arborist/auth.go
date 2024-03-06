@@ -664,6 +664,23 @@ type AuthMappingQuery struct {
 
 type AuthMapping map[string][]Action
 
+
+// TODO This is just a patch to filter out excessive resources. When transitioning to pelican import we should have a project_id = xyz parameter instead
+var authMappingProjectExclusion = `
+ARRAY[
+				'programs.pcdc.projects.20231114.%',
+				'programs.pcdc.projects.20230912.%',
+				'programs.pcdc.projects.20230523.%',
+				'programs.pcdc.projects.20230228.%',
+	            'programs.pcdc.projects.20220808.%',
+				'programs.pcdc.projects.20220501_S01.%',
+				'programs.pcdc.projects.20220201.%',
+	            'programs.pcdc.projects.20220110.%',
+	            'programs.pcdc.projects.20211006.%',
+	            'programs.pcdc.projects.20210915.%',
+	            'programs.pcdc.projects.20210212.%'
+	        ]
+`
 // authMapping gets the auth mapping for the user with this username.
 // The user's auth mapping includes the permissions of the `anonymous` and
 // `logged-in` groups.
@@ -707,24 +724,12 @@ func authMapping(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
 	    INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
 	    INNER JOIN permission ON permission.role_id = policy_role.role_id
 	    INNER JOIN resource ON resource.path <@ policy_resources.path
-	    WHERE ltree2text(resource.path) NOT LIKE ALL (
-	        ARRAY[
-				'programs.pcdc.projects.20231114.%',
-				'programs.pcdc.projects.20230912.%',
-				'programs.pcdc.projects.20230523.%',
-				'programs.pcdc.projects.20230228.%',
-	            'programs.pcdc.projects.20220808.%',
-				'programs.pcdc.projects.20220501_S01.%',
-				'programs.pcdc.projects.20220201.%',
-	            'programs.pcdc.projects.20220110.%',
-	            'programs.pcdc.projects.20211006.%',
-	            'programs.pcdc.projects.20210915.%',
-	            'programs.pcdc.projects.20210212.%'
-	        ]
+	    WHERE ltree2text(resource.path) NOT LIKE ALL (`
+
+   stmt += authMappingProjectExclusion
+   stmt += `
 	    )
-		
 	`
-	
 	// where resource.path ~ (CAST('programs.pcdc.projects.20230228.*' AS lquery))
 	// where ltree2text(resource.path) not like 'programs.pcdc.projects.20220201.%' and ltree2text(resource.path) not like 'programs.pcdc.projects.20220808.%') as teat;
 		
@@ -766,6 +771,12 @@ func authMappingForGroups(db *sqlx.DB, groups ...string) (AuthMapping, *ErrorRes
 		INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
 		INNER JOIN permission ON permission.role_id = policy_role.role_id
 		INNER JOIN resource ON resource.path <@ roots.path
+		WHERE ltree2text(resource.path) NOT LIKE ALL (`
+
+   	stmt += authMappingProjectExclusion
+   	stmt += `
+	    )
+		
 	`
 	// sqlx.In allows safely binding variable numbers of arguments as bindvars.
 	// See https://jmoiron.github.io/sqlx/#inQueries,
@@ -792,7 +803,6 @@ func authMappingForGroups(db *sqlx.DB, groups ...string) (AuthMapping, *ErrorRes
 	return mapping, nil
 }
 
-
 // authMappingForClient gets the auth mapping for a client ID.
 // It does NOT includes the permissions of the `anonymous` and
 // `logged-in` groups.
@@ -813,11 +823,16 @@ func authMappingForClient(db *sqlx.DB, clientID string) (AuthMapping, *ErrorResp
 		INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
 		INNER JOIN permission ON permission.role_id = policy_role.role_id
 		INNER JOIN resource ON resource.path <@ roots.path
+		WHERE ltree2text(resource.path) NOT LIKE ALL (`
+
+   	stmt += authMappingProjectExclusion
+   	stmt += `
+	    )
 	`
 	err := db.Select(
 		&mappingQuery,
 		stmt,
-		clientID,       // $1
+		clientID, // $1
 	)
 	if err != nil {
 		errResponse := newErrorResponse("mapping query failed", 500, &err)
