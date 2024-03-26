@@ -257,8 +257,7 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 
 	usernameProvided := username != ""
 	if usernameProvided {
-		mappings, errResponse := authMapping(server.db, username)
-
+		mappings, errResponse := authMappingForUser(server.db, username)
 		if errResponse != nil {
 			errResponse.log.write(server.logger)
 			_ = errResponse.write(w, r)
@@ -290,7 +289,8 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 	username := ""
 	clientID := ""
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
-		server.logger.Info("Attempting to get username or clientID from jwt...")
+		// Try to get username or clientID from the JWT.
+		server.logger.Info("Attempting to get username or client ID from jwt...")
 		userJWT := strings.TrimPrefix(authHeader, "Bearer ")
 		userJWT = strings.TrimPrefix(userJWT, "bearer ")
 		scopes := []string{"openid"}
@@ -348,7 +348,7 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 	if clientID != "" {
 		mappings, errResponse = authMappingForClient(server.db, clientID)
 	} else {
-		mappings, errResponse = authMapping(server.db, username)
+		mappings, errResponse = authMappingForUser(server.db, username)
 	}
 	if errResponse != nil {
 		errResponse.log.write(server.logger)
