@@ -258,7 +258,7 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		server.logger.Info("found username in jwt: %s", info.username)
-		username = info.username
+		username = strings.ToLower(info.username)
 	}
 
 	usernameProvided := username != ""
@@ -534,6 +534,7 @@ func (server *Server) handleAuthRequest(w http.ResponseWriter, r *http.Request, 
 				return
 			}
 			if !rv.Auth {
+				server.logger.Debug("anonymous user is unauthorized")
 				_ = jsonResponseFrom(rv, 200).write(w, r)
 				return
 			}
