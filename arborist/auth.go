@@ -665,8 +665,10 @@ type AuthMappingQuery struct {
 type AuthMapping map[string][]Action
 
 // TODO This is just a patch to filter out excessive resources. When transitioning to pelican import we should have a project_id = xyz parameter instead
+// Future pcdc-20250408
 var authMappingProjectExclusion = `
 ARRAY[
+				'programs.pcdc.projects.20250114.%',
 				'programs.pcdc.projects.20241008.%',
 				'programs.pcdc.projects.20240709.%',
 				'programs.pcdc.projects.20240409.%',
