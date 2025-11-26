@@ -695,6 +695,7 @@ ARRAY[
 // throw an error, but will return only the auth mapping of the `anonymous`
 // and `logged-in` groups.
 func authMappingForUser(db *sqlx.DB, username string) (AuthMapping, *ErrorResponse) {
+// func authMappingForUser(db *sqlx.DB, username string, withoutDescendant bool) (AuthMapping, *ErrorResponse) {
 	mappingQuery := []AuthMappingQuery{}
 	stmt := `
 		WITH policies AS (
@@ -730,8 +731,27 @@ func authMappingForUser(db *sqlx.DB, username string) (AuthMapping, *ErrorRespon
 	    INNER JOIN policy_resources ON policy_resources.policy_id = policies.policy_id
 	    INNER JOIN policy_role ON policy_role.policy_id = policies.policy_id
 	    INNER JOIN permission ON permission.role_id = policy_role.role_id
-	    INNER JOIN resource ON resource.path <@ policy_resources.path
-	    WHERE ltree2text(resource.path) NOT LIKE ALL (`
+	`
+
+	withoutDescendant := true
+	if withoutDescendant {
+		stmt += `
+			INNER JOIN resource ON resource.path = policy_resources.path
+			WHERE NOT EXISTS (
+				SELECT 1
+				FROM policy_resources pr2
+				WHERE pr2.policy_id = policy_resources.policy_id
+				AND pr2.path <> policy_resources.path
+				AND policy_resources.path <@ pr2.path
+			)
+			AND ltree2text(resource.path) NOT LIKE ALL (
+		`
+	} else {
+		stmt += `
+			INNER JOIN resource ON resource.path <@ policy_resources.path
+	    	WHERE ltree2text(resource.path) NOT LIKE ALL (
+		`
+	}
 
    stmt += authMappingProjectExclusion
    stmt += `
