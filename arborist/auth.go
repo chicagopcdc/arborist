@@ -668,6 +668,7 @@ type AuthMapping map[string][]Action
 // Future pcdc-20250408
 var authMappingProjectExclusion = `
 ARRAY[
+                'programs.pcdc.projects.20251014.%',
 				'programs.pcdc.projects.20250708.%',
 				'programs.pcdc.projects.20250408.%',
 				'programs.pcdc.projects.20250114.%',
