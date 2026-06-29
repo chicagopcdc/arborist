@@ -668,7 +668,10 @@ type AuthMapping map[string][]Action
 // TODO This is just a patch to filter out excessive resources. When transitioning to pelican import we should have a project_id = xyz parameter instead
 // Future pcdc-20250408
 
-func authMappingProjectExclusion() string {
+// authMappingProjectExclusion is loaded once at startup from AUTH_MAPPING_PROJECT_EXCLUSION.
+var authMappingProjectExclusion = loadAuthMappingProjectExclusion()
+
+func loadAuthMappingProjectExclusion() string {
 	if v := strings.TrimSpace(os.Getenv("AUTH_MAPPING_PROJECT_EXCLUSION")); v != "" {
 		return v
 	}
@@ -719,7 +722,7 @@ func authMappingForUser(db *sqlx.DB, username string) (AuthMapping, *ErrorRespon
 	    INNER JOIN resource ON resource.path <@ policy_resources.path
 	    WHERE ltree2text(resource.path) NOT LIKE ALL (`
 
-   stmt += authMappingProjectExclusion()
+   stmt += authMappingProjectExclusion
    stmt += `
 	    )
 	`
@@ -766,7 +769,7 @@ func authMappingForGroups(db *sqlx.DB, groups ...string) (AuthMapping, *ErrorRes
 		INNER JOIN resource ON resource.path <@ roots.path
 		WHERE ltree2text(resource.path) NOT LIKE ALL (`
 
-   	stmt += authMappingProjectExclusion()
+   	stmt += authMappingProjectExclusion
    	stmt += `
 	    )
 		
@@ -818,7 +821,7 @@ func authMappingForClient(db *sqlx.DB, clientID string) (AuthMapping, *ErrorResp
 		INNER JOIN resource ON resource.path <@ roots.path
 		WHERE ltree2text(resource.path) NOT LIKE ALL (`
 
-   	stmt += authMappingProjectExclusion()
+   	stmt += authMappingProjectExclusion
    	stmt += `
 	    )
 	`

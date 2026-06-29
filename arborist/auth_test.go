@@ -5,10 +5,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAuthMappingProjectExclusion(t *testing.T) {
+func TestLoadAuthMappingProjectExclusion(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		t.Setenv("AUTH_MAPPING_PROJECT_EXCLUSION", "")
-		assert.Equal(t, "ARRAY[]::text[]", authMappingProjectExclusion())
+		assert.Equal(t, "ARRAY[]::text[]", loadAuthMappingProjectExclusion())
 	})
 
 	t.Run("uses env value as-is", func(t *testing.T) {
@@ -19,7 +19,7 @@ func TestAuthMappingProjectExclusion(t *testing.T) {
 		assert.Equal(
 			t,
 			"ARRAY['programs.pcdc.projects.20260113.%', 'programs.pcdc.projects.20251014.%']",
-			authMappingProjectExclusion(),
+			loadAuthMappingProjectExclusion(),
 		)
 	})
 }
