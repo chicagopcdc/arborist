@@ -677,6 +677,10 @@ func loadAuthMappingProjectExclusion() string {
 	}
 	return "ARRAY[]::text[]"
 }
+
+fmt.Printf("AUTH MAPPING for %s\n", os.Getenv("AUTH_MAPPING_PROJECT_EXCLUSION"))
+
+
 // authMappingForUser gets the auth mapping for the user with this username.
 // The user's auth mapping includes the permissions of the `anonymous` and
 // `logged-in` groups.
