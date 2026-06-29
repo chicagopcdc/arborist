@@ -665,21 +665,16 @@ type AuthMappingQuery struct {
 
 type AuthMapping map[string][]Action
 
-// TODO This is just a patch to filter out excessive resources. When transitioning to pelican import we should have a project_id = xyz parameter instead
-// Future pcdc-20250408
 
 // authMappingProjectExclusion is loaded once at startup from AUTH_MAPPING_PROJECT_EXCLUSION.
 var authMappingProjectExclusion = loadAuthMappingProjectExclusion()
 
 func loadAuthMappingProjectExclusion() string {
-	fmt.Printf("AUTH MAPPING for %s\n", os.Getenv("AUTH_MAPPING_PROJECT_EXCLUSION"))
-
 	if v := strings.TrimSpace(os.Getenv("AUTH_MAPPING_PROJECT_EXCLUSION")); v != "" {
 		return v
 	}
 	return "ARRAY[]::text[]"
 }
-
 
 
 // authMappingForUser gets the auth mapping for the user with this username.
