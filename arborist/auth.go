@@ -672,13 +672,14 @@ type AuthMapping map[string][]Action
 var authMappingProjectExclusion = loadAuthMappingProjectExclusion()
 
 func loadAuthMappingProjectExclusion() string {
+	fmt.Printf("AUTH MAPPING for %s\n", os.Getenv("AUTH_MAPPING_PROJECT_EXCLUSION"))
+
 	if v := strings.TrimSpace(os.Getenv("AUTH_MAPPING_PROJECT_EXCLUSION")); v != "" {
 		return v
 	}
 	return "ARRAY[]::text[]"
 }
 
-fmt.Printf("AUTH MAPPING for %s\n", os.Getenv("AUTH_MAPPING_PROJECT_EXCLUSION"))
 
 
 // authMappingForUser gets the auth mapping for the user with this username.
