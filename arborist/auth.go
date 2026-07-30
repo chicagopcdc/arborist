@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -664,33 +665,18 @@ type AuthMappingQuery struct {
 
 type AuthMapping map[string][]Action
 
-// TODO This is just a patch to filter out excessive resources. When transitioning to pelican import we should have a project_id = xyz parameter instead
-// Future pcdc-20250408
-var authMappingProjectExclusion = `
-ARRAY[
-				'programs.pcdc.projects.20260414.%',
-				'programs.pcdc.projects.20260113.%',
-				'programs.pcdc.projects.20251014.%',
-				'programs.pcdc.projects.20250708.%',
-				'programs.pcdc.projects.20250408.%',
-				'programs.pcdc.projects.20250114.%',
-				'programs.pcdc.projects.20241008.%',
-				'programs.pcdc.projects.20240709.%',
-				'programs.pcdc.projects.20240409.%',
-				'programs.pcdc.projects.20240130.%',
-				'programs.pcdc.projects.20231114.%',
-				'programs.pcdc.projects.20230912.%',
-				'programs.pcdc.projects.20230523.%',
-				'programs.pcdc.projects.20230228.%',
-	            'programs.pcdc.projects.20220808.%',
-				'programs.pcdc.projects.20220501_S01.%',
-				'programs.pcdc.projects.20220201.%',
-	            'programs.pcdc.projects.20220110.%',
-	            'programs.pcdc.projects.20211006.%',
-	            'programs.pcdc.projects.20210915.%',
-	            'programs.pcdc.projects.20210212.%'
-	        ]
-`
+
+// authMappingProjectExclusion is loaded once at startup from AUTH_MAPPING_PROJECT_EXCLUSION.
+var authMappingProjectExclusion = loadAuthMappingProjectExclusion()
+
+func loadAuthMappingProjectExclusion() string {
+	if v := strings.TrimSpace(os.Getenv("AUTH_MAPPING_PROJECT_EXCLUSION")); v != "" {
+		return v
+	}
+	return "ARRAY[]::text[]"
+}
+
+
 // authMappingForUser gets the auth mapping for the user with this username.
 // The user's auth mapping includes the permissions of the `anonymous` and
 // `logged-in` groups.
