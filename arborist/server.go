@@ -917,7 +917,8 @@ func (server *Server) handlePolicyDelete(w http.ResponseWriter, r *http.Request)
 }
 
 func (server *Server) handleResourceList(w http.ResponseWriter, r *http.Request) {
-	resourcesFromQuery, err := listResourcesFromDb(server.db)
+	// `?exclude=/some/path` (repeatable) leaves out everything beneath that path
+	resourcesFromQuery, err := listResourcesFromDb(server.db, r.URL.Query()["exclude"])
 	resources := []ResourceOut{}
 	for _, resourceFromQuery := range resourcesFromQuery {
 		resources = append(resources, resourceFromQuery.standardize())
