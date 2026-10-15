@@ -233,8 +233,33 @@ func resourceWithTag(db *sqlx.DB, tag string) (*ResourceFromQuery, error) {
 	return &resource, nil
 }
 
-func listResourcesFromDb(db *sqlx.DB) ([]ResourceFromQuery, error) {
-	stmt := `
+// notStrictlyUnder returns a SQL condition that is true for a resource whose
+// path is not a descendant of any of the excluded paths. An excluded resource
+// itself is kept: only what lies beneath it is dropped. `column` is the path
+// column to test, and the excluded paths are bound as $1, $2, ... in order.
+func notStrictlyUnder(column string, excluded int) string {
+	conditions := []string{"TRUE"}
+	for i := 1; i <= excluded; i++ {
+		conditions = append(conditions, fmt.Sprintf(
+			"NOT (%[1]s <@ text2ltree($%[2]d) AND %[1]s <> text2ltree($%[2]d))",
+			column, i,
+		))
+	}
+	return strings.Join(conditions, " AND ")
+}
+
+// listResourcesFromDb lists every resource except those beneath one of the
+// `exclude` paths (given in their front-end form, like `/programs/pcdc`). The
+// excluded resource itself is still listed, but its subresources are not, so a
+// huge subtree can be left out of the answer instead of being built and sent.
+func listResourcesFromDb(db *sqlx.DB, exclude []string) ([]ResourceFromQuery, error) {
+	args := []interface{}{}
+	for _, path := range exclude {
+		if path = strings.TrimSpace(path); path != "" {
+			args = append(args, FormatPathForDb(path))
+		}
+	}
+	stmt := fmt.Sprintf(`
 		SELECT
 			parent.id,
 			parent.name,
@@ -246,13 +271,14 @@ func listResourcesFromDb(db *sqlx.DB) ([]ResourceFromQuery, error) {
 				FROM resource AS child
 				WHERE child.path ~ (
 					CAST ((ltree2text(parent.path) || '.*{1}') AS lquery)
-				)
+				) AND %s
 			) AS subresources
 		FROM resource AS parent
+		WHERE %s
 		GROUP BY parent.id
-	`
+	`, notStrictlyUnder("child.path", len(args)), notStrictlyUnder("parent.path", len(args)))
 	var resources []ResourceFromQuery
-	err := db.Select(&resources, stmt)
+	err := db.Select(&resources, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
