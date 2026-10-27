@@ -1074,6 +1074,60 @@ func TestServer(t *testing.T) {
 			assert.Equal(t, []string{"/a/b"}, result.Subresources, msg)
 		})
 
+		t.Run("ListExclude", func(t *testing.T) {
+			for _, path := range []string{"/exclt/big/c", "/exclt/big/d", "/exclt/small"} {
+				body := []byte(fmt.Sprintf(`{"path": "%s"}`, path))
+				w := httptest.NewRecorder()
+				req := newRequest("POST", "/resource?p", bytes.NewBuffer(body))
+				handler.ServeHTTP(w, req)
+				if w.Code != http.StatusCreated {
+					httpError(t, w, "couldn't create resource")
+				}
+			}
+
+			// list, keeping only the resources this test created
+			list := func(query string) map[string][]string {
+				w := httptest.NewRecorder()
+				req := newRequest("GET", "/resource"+query, nil)
+				handler.ServeHTTP(w, req)
+				if w.Code != http.StatusOK {
+					httpError(t, w, "can't list resources")
+				}
+				result := struct {
+					Resources []struct {
+						Path         string   `json:"path"`
+						Subresources []string `json:"subresources"`
+					} `json:"resources"`
+				}{}
+				err = json.Unmarshal(w.Body.Bytes(), &result)
+				if err != nil {
+					httpError(t, w, "couldn't read response from resources list")
+				}
+				found := map[string][]string{}
+				for _, resource := range result.Resources {
+					if strings.HasPrefix(resource.Path, "/exclt") {
+						found[resource.Path] = resource.Subresources
+					}
+				}
+				return found
+			}
+
+			all := list("")
+			assert.Len(t, all, 5, "without exclude, everything is listed")
+
+			excluded := list("?exclude=/exclt/big")
+			assert.Len(t, excluded, 3, "the excluded resource stays, what is beneath it goes")
+			assert.Contains(t, excluded, "/exclt")
+			assert.Contains(t, excluded, "/exclt/big")
+			assert.Contains(t, excluded, "/exclt/small")
+			assert.Empty(t, excluded["/exclt/big"], "an excluded resource lists no subresources")
+			assert.ElementsMatch(t, []string{"/exclt/big", "/exclt/small"}, excluded["/exclt"])
+
+			both := list("?exclude=/exclt/big&exclude=/exclt/small")
+			assert.Len(t, both, 3, "exclude can be given more than once")
+			assert.NotContains(t, both, "/exclt/big/c")
+		})
+
 		t.Run("Overwrite", func(t *testing.T) {
 			w := httptest.NewRecorder()
 			body := []byte(`{
