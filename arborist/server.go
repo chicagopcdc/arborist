@@ -18,6 +18,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const DefaultTokenAudience = "gen3"
+
+var DefaultExpectedTokenAudiences = []string{DefaultTokenAudience}
+
 type JWTDecoder interface {
 	Decode(string) (*map[string]interface{}, error)
 }
@@ -252,12 +256,26 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 		userJWT := strings.TrimPrefix(authHeader, "Bearer ")
 		userJWT = strings.TrimPrefix(userJWT, "bearer ")
 		scopes := []string{"openid"}
-		info, err := server.decodeToken(userJWT, scopes)
+
+		aud := []string{}
+		audQS, ok := r.URL.Query()["aud"]
+		if ok {
+			for _, a := range audQS {
+				if len(a) > 0 {
+					aud = append(aud, a)
+				}
+			}
+		}
+		if len(aud) == 0 {
+			aud = DefaultExpectedTokenAudiences
+		}
+
+		info, err := server.decodeToken(userJWT, aud, scopes)
 		if err != nil {
-			// Return 400 on failure to decode JWT
+			// Return 401 on failure to decode JWT
 			msg := fmt.Sprintf("tried to get username from jwt, but jwt decode failed: %s", err.Error())
 			server.logger.Info("%s", msg)
-			_ = jsonResponseFrom(msg, http.StatusBadRequest).write(w, r)
+			_ = jsonResponseFrom(msg, http.StatusUnauthorized).write(w, r)
 			return
 		}
 		server.logger.Info("found username in jwt: %s", info.username)
@@ -275,7 +293,7 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 		_ = jsonResponseFrom(mappings, http.StatusOK).write(w, r)
 		return
 	} else {
-		// If no username provided in query string or JWT, return the
+		// If no username provided in the JWT, return the
 		// auth mapping for the `anonymous` group. (See `docs/username.md` for more detail)
 		mappings, errResponse := authMappingForGroups(server.db, AnonymousGroup)
 		if errResponse != nil {
@@ -291,8 +309,9 @@ func (server *Server) handleAuthMappingGET(w http.ResponseWriter, r *http.Reques
 func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Request) {
 	var errResponse *ErrorResponse = nil
 	requestBody := struct {
-		Username string `json:"username"`
-		ClientID string `json:"clientID"`
+		Username  string   `json:"username"`
+		ClientID  string   `json:"clientID"`
+		Audiences []string `json:"aud"`
 	}{}
 
 	body, err := server.parseJsonBody(w, r)
@@ -302,15 +321,43 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	username := ""
-	clientID := ""
+	if len(body) > 0 {
+		errResp := json.Unmarshal(body, &requestBody)
+		if errResp != nil {
+			msg := fmt.Sprintf("could not parse JSON: %s", errResp.Error())
+			server.logger.Error("tried to handle auth mapping request but input was invalid: %s", msg)
+			errResponse = newErrorResponse(msg, 400, nil)
+			_ = errResponse.write(w, r)
+			return
+		}
+	}
+	username := requestBody.Username
+	clientID := requestBody.ClientID
+
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		if username != "" || clientID != "" {
+			msg := "`username` or `clientID` cannot be specified in the request body when a token is provided"
+			server.logger.Info("%s", msg)
+			errResponse = newErrorResponse(msg, 400, nil)
+			_ = errResponse.write(w, r)
+			return
+		}
+
 		// Try to get username or clientID from the JWT.
 		server.logger.Info("Attempting to get username or client ID from jwt...")
 		userJWT := strings.TrimPrefix(authHeader, "Bearer ")
 		userJWT = strings.TrimPrefix(userJWT, "bearer ")
 		scopes := []string{"openid"}
-		info, err := server.decodeToken(userJWT, scopes)
+
+		var aud []string
+		if len(requestBody.Audiences) == 0 {
+			aud = DefaultExpectedTokenAudiences
+		} else {
+			aud = make([]string, len(requestBody.Audiences))
+			copy(aud, requestBody.Audiences)
+		}
+
+		info, err := server.decodeToken(userJWT, aud, scopes)
 		if err != nil {
 			// Return 401 on failure to decode JWT
 			msg := fmt.Sprintf("tried to get username/client ID from jwt, but jwt decode failed: %s", err.Error())
@@ -336,24 +383,21 @@ func (server *Server) handleAuthMappingPOST(w http.ResponseWriter, r *http.Reque
 			_ = errResponse.write(w, r)
 			return
 		}
-	} else if len(body) > 0 {
+	} else if username != "" || clientID != "" {
 		// If they are not present in the token, fallback on the request body
 		server.logger.Info("No jwt provided, checking request body")
-		err := json.Unmarshal(body, &requestBody)
-		if err != nil {
-			msg := fmt.Sprintf("could not parse JSON: %s", err.Error())
-			server.logger.Error("tried to handle auth mapping request but input was invalid: %s", msg)
+		if requestBody.Audiences != nil {
+			// there is no token, so the audience cannot be validated, so the aud param is rejected
+			msg := "`aud` cannot be specified in the request body when a token is not provided"
+			server.logger.Info("%s", msg)
 			errResponse = newErrorResponse(msg, 400, nil)
-		} else {
-			username = requestBody.Username
-			clientID = requestBody.ClientID
-			if (username == "") == (clientID == "") {
-				msg := "must provide a token or specify exactly one of `username` or `clientID` in the request body"
-				server.logger.Info("%s", msg)
-				errResponse = newErrorResponse(msg, 400, nil)
-			}
+			_ = errResponse.write(w, r)
+			return
 		}
-		if errResponse != nil {
+		if username != "" && clientID != "" {
+			msg := "Only one of `username` or `clientID` can be specified in the request body. This endpoint only supports returning the user's mapping, not the combination of user+client access"
+			server.logger.Info("%s", msg)
+			errResponse = newErrorResponse(msg, 400, nil)
 			_ = errResponse.write(w, r)
 			return
 		}
@@ -468,6 +512,14 @@ func (server *Server) handleAuthRequest(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	var aud []string
+	if len(authRequestJSON.Audiences) == 0 {
+		aud = DefaultExpectedTokenAudiences
+	} else {
+		aud = make([]string, len(authRequestJSON.Audiences))
+		copy(aud, authRequestJSON.Audiences)
+	}
+
 	var scopes []string
 	if authRequestJSON.User.Scopes == nil {
 		scopes = []string{"openid"}
@@ -485,7 +537,7 @@ func (server *Server) handleAuthRequest(w http.ResponseWriter, r *http.Request, 
 
 	var info *TokenInfo
 	if !isAnonymous && authRequestJSON.User.Token != "" {
-		info, err = server.decodeToken(authRequestJSON.User.Token, scopes)
+		info, err = server.decodeToken(authRequestJSON.User.Token, aud, scopes)
 		if err != nil {
 			server.logger.Info("%s", err.Error())
 			errResponse := newErrorResponse(err.Error(), 401, &err)
@@ -671,7 +723,9 @@ func (server *Server) handleListAuthResourcesPOST(w http.ResponseWriter, r *http
 		copy(scopes, request.User.Scopes)
 	}
 
-	info, err := server.decodeToken(request.User.Token, scopes)
+	// NOTE: `POST /auth/resources` does not support a custom token audience parameter yet.
+	// This endpoint assumes the token has `aud=gen3`.
+	info, err := server.decodeToken(request.User.Token, DefaultExpectedTokenAudiences, scopes)
 	if err != nil {
 		server.logger.Info("%s", err.Error())
 		errResponse := newErrorResponse(err.Error(), 401, &err)
@@ -962,61 +1016,59 @@ func (server *Server) handleResourceCreate(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	errResponse = nil
+	write := resource.createInDb
 	if r.Method == "PUT" {
 		_, mergeFlag := r.URL.Query()["merge"]
-		updateResource := func(tx *sqlx.Tx) *ErrorResponse {
-			resource.updateInDb(tx, mergeFlag)
-			return nil
+		write = func(tx *sqlx.Tx) *ErrorResponse {
+			return resource.updateInDb(tx, mergeFlag)
 		}
-		errResponse = transactify(server.db, updateResource)
-	} else {
-		errResponse = transactify(server.db, resource.createInDb)
 	}
-	if errResponse != nil && errResponse.HTTPError.Code != 409 {
-		// `transactify` returns 500 if there was a SQL error. Here we'll assume
-		// that this would be because of an invalid resource input from the caller.
-		// This could definitely do with some better error handling to make sure
-		// this is accurate.
-		if errResponse.HTTPError.Code == 500 {
+	// Read the resource back inside the same transaction: if the commit
+	// succeeds this is exactly what was written, and if it fails nothing was.
+	var created *ResourceFromQuery
+	errResponse = transactify(server.db, func(tx *sqlx.Tx) *ErrorResponse {
+		if errResponse := write(tx); errResponse != nil {
+			return errResponse
+		}
+		var err error
+		created, err = resourceWithPath(tx, resource.Path)
+		if err != nil {
+			msg := fmt.Sprintf("couldn't read back resource %s: %s", resource.Path, err.Error())
+			return newErrorResponse(msg, 500, &err)
+		}
+		if created == nil {
+			msg := fmt.Sprintf("resource %s missing right after writing it", resource.Path)
+			return newErrorResponse(msg, 500, nil)
+		}
+		return nil
+	})
+	if errResponse != nil {
+		if errResponse.HTTPError.Code == 500 && isMissingParentError(errResponse.err) {
+			// the parent check failed at commit (see `isMissingParentError`)
 			errResponse.HTTPError.Code = 400
 		}
-		// TODO: patch error message to be intelligible if dumping resource path
-		errResponse.log.write(server.logger)
-		_ = errResponse.write(w, r)
-		return
-	}
-	resourceFromQuery, err := resourceWithPath(server.db, resource.Path)
-	if err != nil {
-		errResponse := newErrorResponse(err.Error(), 500, &err)
-		errResponse.log.write(server.logger)
-		_ = errResponse.write(w, r)
-		return
-	}
-	if resourceFromQuery == nil {
-		msg := fmt.Sprintf(
-			"couldn't return resource for %s, but it may have been created OK",
-			resource.Path,
-		)
-		errResponse := newErrorResponse(msg, 500, &err)
-		errResponse.log.write(server.logger)
-		_ = errResponse.write(w, r)
-		return
-	}
-	out := resourceFromQuery.standardize()
-	if errResponse != nil {
-		// otherwise, must be 409 (already handled non-409 errors).
-		server.logger.Info("not creating resource %s (%s), already exists", out.Path, out.Tag)
-		result := struct {
-			Error  HTTPError    `json:"error"`
-			Exists *ResourceOut `json:"exists"`
-		}{
-			Error:  errResponse.HTTPError,
-			Exists: &out,
+		if errResponse.HTTPError.Code == 409 {
+			// nothing was written; if the requested resource exists, include it
+			existing, err := resourceWithPath(server.db, resource.Path)
+			if err == nil && existing != nil {
+				out := existing.standardize()
+				server.logger.Info("not creating resource %s (%s), already exists", out.Path, out.Tag)
+				result := struct {
+					Error  HTTPError    `json:"error"`
+					Exists *ResourceOut `json:"exists"`
+				}{
+					Error:  errResponse.HTTPError,
+					Exists: &out,
+				}
+				_ = jsonResponseFrom(result, 409).write(w, r)
+				return
+			}
 		}
-		_ = jsonResponseFrom(result, 409).write(w, r)
+		errResponse.log.write(server.logger)
+		_ = errResponse.write(w, r)
 		return
 	}
+	out := created.standardize()
 
 	server.logger.Info("created resource %s (%s)", out.Path, out.Tag)
 	result := struct {
